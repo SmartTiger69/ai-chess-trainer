@@ -201,8 +201,6 @@ class _ChessScreenState extends State<ChessScreen> {
 
             Expanded(
               child: ChessBoardWidget(
-                key: ValueKey(game.fen),
-
                 game: game,
 
                 whiteAtBottom: true,

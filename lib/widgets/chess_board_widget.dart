@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:chess/chess.dart' as chess;
 import 'package:ai_chess_trainer_app/widgets/move_sound_player.dart';
 import 'package:ai_chess_trainer_app/widgets/promotion_dialog.dart';
@@ -398,7 +400,9 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
     final capturedBlackPieces = _capturedPieceAssets(chess.Color.BLACK);
     _debugLogCapturedPieces(capturedWhitePieces, capturedBlackPieces);
 
-    final topPlayerColor = widget.whiteAtBottom ? chess.Color.BLACK : chess.Color.WHITE;
+    final topPlayerColor = widget.whiteAtBottom
+        ? chess.Color.BLACK
+        : chess.Color.WHITE;
     final bottomPlayerColor = topPlayerColor == chess.Color.WHITE
         ? chess.Color.BLACK
         : chess.Color.WHITE;
@@ -406,104 +410,103 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
     final bottomName = bottomPlayerColor == widget.userColor ? 'User' : 'Bot';
 
     return RepaintBoundary(
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          _PlayerHeader(
-            name: topName,
-            assetPaths: widget.whiteAtBottom
-                ? capturedWhitePieces
-                : capturedBlackPieces,
-            materialAdvantage: widget.whiteAtBottom
-                ? _materialAdvantageFor(chess.Color.BLACK)
-                : _materialAdvantageFor(chess.Color.WHITE),
-            avatarAssetPath: _pieceAssetPath(
-              chess.Piece(chess.PieceType.KING, topPlayerColor),
-            )!,
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x55000000),
-                      offset: Offset(0, 10),
-                      blurRadius: 24,
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: GridView.builder(
-                    padding: EdgeInsets.zero,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 8,
-                        ),
-                    itemCount: 64,
-                    itemBuilder: (context, index) {
-                      final row = index ~/ 8;
-                      final column = index % 8;
-                      final square = _squareName(index);
-                      final piece = widget.game.get(square);
-                      final pieceAssetPath = _pieceAssetPath(piece);
-                      final isLegalDestination = _legalDestinationSquares
-                          .contains(square);
-                      final isSelected = _selectedSquare == square;
-                      final squareCaptureFeedback =
-                          captureFeedback?.square == square
-                          ? captureFeedback
-                          : null;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const headerGap = 5.0;
+          const stackChrome =
+              (_PlayerHeader.headerHeight * 2) + (headerGap * 2);
+          final boardSize = math.min(
+            constraints.maxWidth,
+            (constraints.maxHeight - stackChrome).clamp(0.0, double.infinity),
+          );
 
-                      return _BoardSquare(
-                        key: ValueKey(square),
-                        color: _squareColor(index),
-                        pieceAssetPath: pieceAssetPath,
-                        square: square,
-                        isSelected: isSelected,
-                        isLastMoveSquare: lastMoveSquares.contains(square),
-                        showMoveDot: isLegalDestination && piece == null,
-                        moveDotColor: _moveDotColor,
-                        selectedHighlightColor: _selectedHighlightColor,
-                        lastMoveHighlightColor: _lastMoveHighlightColor,
-                        captureGlowColor: _captureGlowColor,
-                        captureFeedback: squareCaptureFeedback,
-                        rankLabel: column == 0 ? '${_rankForRow(row)}' : null,
-                        fileLabel: row == 7 ? _fileForColumn(column) : null,
-                        coordinateColor: _coordinateColor(index),
-                        isDraggable: widget.isInteractive && piece != null,
-                        onDragStarted: () => _handleDragStarted(square),
-                        onDragCanceled: _handleDragCanceled,
-                        onCanAcceptDrop: (from) =>
-                            _canDropOnSquare(from, square),
-                        onAcceptDrop: (from) => _handlePieceDrop(from, square),
-                        onTap: () => _handleSquareTap(square),
-                      );
-                    },
+          if (boardSize <= 0) {
+            return const SizedBox.shrink();
+          }
+
+          return Center(
+            child: SizedBox(
+              width: boardSize,
+              height: boardSize + stackChrome,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _PlayerHeader(
+                    name: topName,
+                    assetPaths: widget.whiteAtBottom
+                        ? capturedWhitePieces
+                        : capturedBlackPieces,
+                    materialAdvantage: widget.whiteAtBottom
+                        ? _materialAdvantageFor(chess.Color.BLACK)
+                        : _materialAdvantageFor(chess.Color.WHITE),
+                    avatarAssetPath: _pieceAssetPath(
+                      chess.Piece(chess.PieceType.KING, topPlayerColor),
+                    )!,
                   ),
-                ),
+                  const SizedBox(height: headerGap),
+                  SizedBox.square(
+                    dimension: boardSize,
+                    child: _ChessBoardGrid(
+                      itemBuilder: (context, index) {
+                        final row = index ~/ 8;
+                        final column = index % 8;
+                        final square = _squareName(index);
+                        final piece = widget.game.get(square);
+                        final pieceAssetPath = _pieceAssetPath(piece);
+                        final isLegalDestination = _legalDestinationSquares
+                            .contains(square);
+                        final isSelected = _selectedSquare == square;
+                        final squareCaptureFeedback =
+                            captureFeedback?.square == square
+                            ? captureFeedback
+                            : null;
+
+                        return _BoardSquare(
+                          key: ValueKey(square),
+                          color: _squareColor(index),
+                          pieceAssetPath: pieceAssetPath,
+                          square: square,
+                          isSelected: isSelected,
+                          isLastMoveSquare: lastMoveSquares.contains(square),
+                          showMoveDot: isLegalDestination && piece == null,
+                          moveDotColor: _moveDotColor,
+                          selectedHighlightColor: _selectedHighlightColor,
+                          lastMoveHighlightColor: _lastMoveHighlightColor,
+                          captureGlowColor: _captureGlowColor,
+                          captureFeedback: squareCaptureFeedback,
+                          rankLabel: column == 0 ? '${_rankForRow(row)}' : null,
+                          fileLabel: row == 7 ? _fileForColumn(column) : null,
+                          coordinateColor: _coordinateColor(index),
+                          isDraggable: widget.isInteractive && piece != null,
+                          onDragStarted: () => _handleDragStarted(square),
+                          onDragCanceled: _handleDragCanceled,
+                          onCanAcceptDrop: (from) =>
+                              _canDropOnSquare(from, square),
+                          onAcceptDrop: (from) =>
+                              _handlePieceDrop(from, square),
+                          onTap: () => _handleSquareTap(square),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: headerGap),
+                  _PlayerHeader(
+                    name: bottomName,
+                    assetPaths: widget.whiteAtBottom
+                        ? capturedBlackPieces
+                        : capturedWhitePieces,
+                    materialAdvantage: widget.whiteAtBottom
+                        ? _materialAdvantageFor(chess.Color.WHITE)
+                        : _materialAdvantageFor(chess.Color.BLACK),
+                    avatarAssetPath: _pieceAssetPath(
+                      chess.Piece(chess.PieceType.KING, bottomPlayerColor),
+                    )!,
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          _PlayerHeader(
-            name: bottomName,
-            assetPaths: widget.whiteAtBottom
-                ? capturedBlackPieces
-                : capturedWhitePieces,
-            materialAdvantage: widget.whiteAtBottom
-                ? _materialAdvantageFor(chess.Color.WHITE)
-                : _materialAdvantageFor(chess.Color.BLACK),
-            avatarAssetPath: _pieceAssetPath(
-              chess.Piece(chess.PieceType.KING, bottomPlayerColor),
-            )!,
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -708,7 +711,44 @@ class _BoardSquare extends StatelessWidget {
   }
 }
 
+class _ChessBoardGrid extends StatelessWidget {
+  final NullableIndexedWidgetBuilder itemBuilder;
+
+  const _ChessBoardGrid({required this.itemBuilder});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            offset: Offset(0, 10),
+            blurRadius: 24,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: GridView.builder(
+          padding: EdgeInsets.zero,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 8,
+          ),
+          itemCount: 64,
+          itemBuilder: itemBuilder,
+        ),
+      ),
+    );
+  }
+}
+
 class _PlayerHeader extends StatelessWidget {
+  static const double headerHeight = 42;
+  static const double _avatarSize = 28;
+
   final String name;
   final List<String> assetPaths;
   final int materialAdvantage;
@@ -724,43 +764,61 @@ class _PlayerHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: headerHeight,
       child: RepaintBoundary(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _PlayerAvatar(assetPath: avatarAssetPath, name: name),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFF15161A),
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: const Color(0x18FFFFFF), width: 1),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x18000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _PlayerAvatar(
+                  assetPath: avatarAssetPath,
+                  name: name,
+                  size: _avatarSize,
+                ),
+                const SizedBox(width: 9),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 96),
+                  child: Text(
                     name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    textHeightBehavior: const TextHeightBehavior(
+                      applyHeightToFirstAscent: false,
+                      applyHeightToLastDescent: false,
+                    ),
                     style: const TextStyle(
-                      color: Color(0xFFF5F5F2),
+                      color: Color(0xFFF2F2EE),
                       fontSize: 14,
                       height: 1,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       letterSpacing: 0,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: _CapturedPiecesInline(
-                        assetPaths: assetPaths,
-                        materialAdvantage: materialAdvantage,
-                      ),
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _CapturedPiecesInline(
+                    assetPaths: assetPaths,
+                    materialAdvantage: materialAdvantage,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -770,23 +828,28 @@ class _PlayerHeader extends StatelessWidget {
 class _PlayerAvatar extends StatelessWidget {
   final String assetPath;
   final String name;
+  final double size;
 
-  const _PlayerAvatar({required this.assetPath, required this.name});
+  const _PlayerAvatar({
+    required this.assetPath,
+    required this.name,
+    required this.size,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox.square(
-      dimension: 32,
+      dimension: size,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: const Color(0xFF3E3B36),
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: const Color(0x22FFFFFF), width: 0.5),
+          color: const Color(0xFF3B3935),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0x24FFFFFF), width: 0.8),
         ),
         child: Padding(
           padding: const EdgeInsets.all(4),
           child: Opacity(
-            opacity: 0.9,
+            opacity: 0.92,
             child: Image.asset(
               assetPath,
               fit: BoxFit.contain,
@@ -802,6 +865,11 @@ class _PlayerAvatar extends StatelessWidget {
 }
 
 class _CapturedPiecesInline extends StatelessWidget {
+  static const double _rowHeight = 22;
+  static const double _pieceSize = 18;
+  static const double _preferredStep = 8.5;
+  static const double _minStep = 5.5;
+
   final List<String> assetPaths;
   final int materialAdvantage;
 
@@ -815,58 +883,120 @@ class _CapturedPiecesInline extends StatelessWidget {
     final hasAdvantage = materialAdvantage > 0;
 
     return SizedBox(
-      height: 13,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (assetPaths.isNotEmpty)
-            SizedBox(
-              width: (assetPaths.length * 6 + 10).toDouble().clamp(14, 128),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  for (var index = 0; index < assetPaths.length; index++)
-                    Positioned(
-                      left: index * 6,
-                      top: -2.5,
-                      child: SizedBox.square(
-                        dimension: 13,
-                        child: Opacity(
-                          opacity: 0.78,
-                          child: Image.asset(
-                            assetPaths[index],
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.low,
-                            gaplessPlayback: true,
+      height: _rowHeight,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 140),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeOutCubic,
+        transitionBuilder: (child, animation) {
+          final fade = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          );
+          return FadeTransition(
+            opacity: fade,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.01, 0),
+                end: Offset.zero,
+              ).animate(fade),
+              child: child,
+            ),
+          );
+        },
+        child: Row(
+          key: ValueKey<String>('cap:${assetPaths.length}:$materialAdvantage'),
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (assetPaths.isEmpty || constraints.maxWidth <= 0) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final maxWidth = constraints.maxWidth;
+                  final idealWidth =
+                      _pieceSize + ((assetPaths.length - 1) * _preferredStep);
+                  final step = assetPaths.length <= 1
+                      ? 0.0
+                      : math
+                            .min(
+                              _preferredStep,
+                              (maxWidth - _pieceSize) / (assetPaths.length - 1),
+                            )
+                            .clamp(_minStep, _preferredStep);
+                  final width = math.min(
+                    maxWidth,
+                    assetPaths.length <= 1
+                        ? _pieceSize
+                        : math.min(
+                            idealWidth,
+                            _pieceSize + ((assetPaths.length - 1) * step),
                           ),
+                  );
+
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: width,
+                      height: _rowHeight,
+                      child: ClipRect(
+                        child: Stack(
+                          clipBehavior: Clip.hardEdge,
+                          children: [
+                            for (
+                              var index = 0;
+                              index < assetPaths.length;
+                              index++
+                            )
+                              Positioned(
+                                left: index * step,
+                                top: (_rowHeight - _pieceSize) / 2,
+                                child: SizedBox.square(
+                                  dimension: _pieceSize,
+                                  child: Opacity(
+                                    opacity: 0.92,
+                                    child: Image.asset(
+                                      assetPaths[index],
+                                      fit: BoxFit.contain,
+                                      filterQuality: FilterQuality.medium,
+                                      gaplessPlayback: true,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
-                ],
+                  );
+                },
               ),
             ),
-          if (hasAdvantage) ...[
-            SizedBox(width: assetPaths.isEmpty ? 0 : 4),
-            Opacity(
-              opacity: 0.62,
-              child: Text(
-                '+$materialAdvantage',
-                maxLines: 1,
-                textHeightBehavior: const TextHeightBehavior(
-                  applyHeightToFirstAscent: false,
-                  applyHeightToLastDescent: false,
-                ),
-                style: const TextStyle(
-                  color: Color(0xFFD8D8D2),
-                  fontSize: 11.5,
-                  height: 1,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0,
+            if (hasAdvantage) ...[
+              SizedBox(width: assetPaths.isEmpty ? 0 : 6),
+              Opacity(
+                opacity: 0.66,
+                child: Text(
+                  '+$materialAdvantage',
+                  maxLines: 1,
+                  textHeightBehavior: const TextHeightBehavior(
+                    applyHeightToFirstAscent: false,
+                    applyHeightToLastDescent: false,
+                  ),
+                  style: const TextStyle(
+                    color: Color(0xFFD5D5CF),
+                    fontSize: 10.5,
+                    height: 1,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

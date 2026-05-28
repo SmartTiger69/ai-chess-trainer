@@ -665,80 +665,78 @@ class _ChessScreenState extends State<ChessScreen> {
   Widget build(BuildContext context) {
     final whiteAtBottom = widget.userColor == chess.Color.WHITE;
     return Scaffold(
+      backgroundColor: const Color(0xFF0F0F12),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF0F0F12),
+        elevation: 0,
         centerTitle: true,
-
         title: const Text(
           "AI Chess Trainer",
-
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: Color(0xFFEFEFEF),
+          ),
         ),
+        iconTheme: const IconThemeData(color: Color(0xFFA8A8A8)),
       ),
-
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-
+      body: SafeArea(
         child: Column(
           children: [
+            const SizedBox(height: 8),
             Container(
-              width: double.infinity,
-
-              padding: const EdgeInsets.all(16),
-
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.deepPurple,
-
+                color: const Color(0xFF1D1E22),
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0x1AFFFFFF)),
               ),
-
-              child: Column(
-                children: [
-                  const Text(
-                    "Game Status",
-
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Text(gameStatus, style: const TextStyle(fontSize: 16)),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            Expanded(
-              child: ChessBoardWidget(
-                game: game,
-
-                whiteAtBottom: whiteAtBottom,
-                userColor: widget.userColor,
-
-                isInteractive:
-                    !isAiThinking &&
-                    !game.game_over &&
-                    game.turn == widget.userColor,
-
-                onMove: handleMove,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            SizedBox(
-              width: double.infinity,
-
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                gameStatus,
+                style: const TextStyle(
+                  color: Color(0xFFEFEFEF),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
                 ),
-
-                onPressed: resetGame,
-
-                child: const Text("Reset Game", style: TextStyle(fontSize: 18)),
               ),
             ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ChessBoardWidget(
+                  game: game,
+                  whiteAtBottom: whiteAtBottom,
+                  userColor: widget.userColor,
+                  isInteractive:
+                      !isAiThinking &&
+                      !game.game_over &&
+                      game.turn == widget.userColor,
+                  onMove: handleMove,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFA8A8A8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: resetGame,
+              icon: const Icon(Icons.refresh, size: 20),
+              label: const Text(
+                "New Game",
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),

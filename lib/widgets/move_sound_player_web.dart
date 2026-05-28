@@ -9,18 +9,18 @@ import 'package:flutter/foundation.dart';
 class BoardSoundPlayer {
   static final String _moveSoundUri = _buildSoundUri(
     // Crisp, premium "wooden tick" (short transient + tight body).
-    durationMs: 46,
-    bodyFrequencies: const [820, 1320, 2080, 3120],
-    knockFrequency: 360,
-    amplitude: 0.20,
+    durationMs: 58,
+    bodyFrequencies: const [760, 1180, 1880, 2860],
+    knockFrequency: 330,
+    amplitude: 0.94,
     seed: 17,
   );
   static final String _captureSoundUri = _buildSoundUri(
     // Slightly deeper + sharper than move (more body, slightly longer).
-    durationMs: 70,
-    bodyFrequencies: const [540, 860, 1280, 1780],
-    knockFrequency: 230,
-    amplitude: 0.23,
+    durationMs: 88,
+    bodyFrequencies: const [430, 690, 1080, 1640, 2260],
+    knockFrequency: 205,
+    amplitude: 0.98,
     seed: 43,
   );
   static bool _primed = false;
@@ -49,7 +49,7 @@ class BoardSoundPlayer {
   static void play({required bool capture}) {
     debugPrint('[sound:web] play requested capture=$capture');
     final audio = html.AudioElement(capture ? _captureSoundUri : _moveSoundUri)
-      ..volume = capture ? 0.205 : 0.172;
+      ..volume = capture ? 1.0 : 0.95;
     audio
         .play()
         .then((_) {
@@ -109,10 +109,10 @@ class BoardSoundPlayer {
       final noise = ((noiseState / 0x7fffffff) * 2) - 1;
 
       // Tight click + reduced noise floor.
-      var wave = noise * clickEnvelope * 0.36;
+      var wave = noise * clickEnvelope * 0.42;
 
       for (var j = 0; j < bodyFrequencies.length; j++) {
-        final weight = 0.34 / (j + 1);
+        final weight = 0.4 / (j + 1);
         final detune = 1 + (j * 0.005);
         wave +=
             math.sin(2 * math.pi * bodyFrequencies[j] * detune * t) *
@@ -120,8 +120,8 @@ class BoardSoundPlayer {
             weight;
       }
 
-      wave += math.sin(2 * math.pi * knockFrequency * t) * knockEnvelope * 0.62;
-      wave = _softClip(wave * 1.7);
+      wave += math.sin(2 * math.pi * knockFrequency * t) * knockEnvelope * 0.72;
+      wave = _softClip(wave * 2.05);
 
       final sample = (wave * amplitude * 32767).clamp(-32768, 32767).round();
       data.setInt16(headerLength + (i * bytesPerSample), sample, Endian.little);

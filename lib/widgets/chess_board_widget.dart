@@ -10,6 +10,7 @@ class ChessBoardWidget extends StatefulWidget {
   final ChessMoveCallback onMove;
   final bool isInteractive;
   final bool whiteAtBottom;
+  final chess.Color userColor;
 
   const ChessBoardWidget({
     super.key,
@@ -17,6 +18,7 @@ class ChessBoardWidget extends StatefulWidget {
     required this.onMove,
     this.isInteractive = true,
     this.whiteAtBottom = true,
+    required this.userColor,
   });
 
   @override
@@ -396,12 +398,19 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
     final capturedBlackPieces = _capturedPieceAssets(chess.Color.BLACK);
     _debugLogCapturedPieces(capturedWhitePieces, capturedBlackPieces);
 
+    final topPlayerColor = widget.whiteAtBottom ? chess.Color.BLACK : chess.Color.WHITE;
+    final bottomPlayerColor = topPlayerColor == chess.Color.WHITE
+        ? chess.Color.BLACK
+        : chess.Color.WHITE;
+    final topName = topPlayerColor == widget.userColor ? 'User' : 'Bot';
+    final bottomName = bottomPlayerColor == widget.userColor ? 'User' : 'Bot';
+
     return RepaintBoundary(
       child: Column(
         mainAxisSize: MainAxisSize.max,
         children: [
           _PlayerHeader(
-            name: 'Bot',
+            name: topName,
             assetPaths: widget.whiteAtBottom
                 ? capturedWhitePieces
                 : capturedBlackPieces,
@@ -409,7 +418,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
                 ? _materialAdvantageFor(chess.Color.BLACK)
                 : _materialAdvantageFor(chess.Color.WHITE),
             avatarAssetPath: _pieceAssetPath(
-              chess.Piece(chess.PieceType.KING, chess.Color.BLACK),
+              chess.Piece(chess.PieceType.KING, topPlayerColor),
             )!,
           ),
           const SizedBox(height: 8),
@@ -483,7 +492,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
           ),
           const SizedBox(height: 8),
           _PlayerHeader(
-            name: 'User',
+            name: bottomName,
             assetPaths: widget.whiteAtBottom
                 ? capturedBlackPieces
                 : capturedWhitePieces,
@@ -491,7 +500,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
                 ? _materialAdvantageFor(chess.Color.WHITE)
                 : _materialAdvantageFor(chess.Color.BLACK),
             avatarAssetPath: _pieceAssetPath(
-              chess.Piece(chess.PieceType.KING, chess.Color.WHITE),
+              chess.Piece(chess.PieceType.KING, bottomPlayerColor),
             )!,
           ),
         ],
@@ -715,17 +724,16 @@ class _PlayerHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 38,
+      height: 40,
       child: RepaintBoundary(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _PlayerAvatar(assetPath: avatarAssetPath, name: name),
-            const SizedBox(width: 9),
+            const SizedBox(width: 10),
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
                     name,
@@ -739,10 +747,15 @@ class _PlayerHeader extends StatelessWidget {
                       letterSpacing: 0,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  _CapturedPiecesInline(
-                    assetPaths: assetPaths,
-                    materialAdvantage: materialAdvantage,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _CapturedPiecesInline(
+                        assetPaths: assetPaths,
+                        materialAdvantage: materialAdvantage,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -802,23 +815,24 @@ class _CapturedPiecesInline extends StatelessWidget {
     final hasAdvantage = materialAdvantage > 0;
 
     return SizedBox(
-      height: 16,
+      height: 13,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (assetPaths.isNotEmpty)
             SizedBox(
-              width: (assetPaths.length * 10 + 10).toDouble().clamp(18, 170),
+              width: (assetPaths.length * 6 + 10).toDouble().clamp(14, 128),
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   for (var index = 0; index < assetPaths.length; index++)
                     Positioned(
-                      left: index * 10,
-                      top: -1,
+                      left: index * 6,
+                      top: -2.5,
                       child: SizedBox.square(
-                        dimension: 18,
+                        dimension: 13,
                         child: Opacity(
-                          opacity: 0.86,
+                          opacity: 0.78,
                           child: Image.asset(
                             assetPaths[index],
                             fit: BoxFit.contain,
@@ -833,15 +847,22 @@ class _CapturedPiecesInline extends StatelessWidget {
             ),
           if (hasAdvantage) ...[
             SizedBox(width: assetPaths.isEmpty ? 0 : 4),
-            Text(
-              '+$materialAdvantage',
-              maxLines: 1,
-              style: const TextStyle(
-                color: Color(0xFFC9C9C4),
-                fontSize: 13,
-                height: 1,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0,
+            Opacity(
+              opacity: 0.62,
+              child: Text(
+                '+$materialAdvantage',
+                maxLines: 1,
+                textHeightBehavior: const TextHeightBehavior(
+                  applyHeightToFirstAscent: false,
+                  applyHeightToLastDescent: false,
+                ),
+                style: const TextStyle(
+                  color: Color(0xFFD8D8D2),
+                  fontSize: 11.5,
+                  height: 1,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0,
+                ),
               ),
             ),
           ],

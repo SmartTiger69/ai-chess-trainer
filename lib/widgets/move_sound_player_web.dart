@@ -8,17 +8,19 @@ import 'package:flutter/foundation.dart';
 
 class BoardSoundPlayer {
   static final String _moveSoundUri = _buildSoundUri(
-    durationMs: 58,
-    bodyFrequencies: const [740, 1180, 1860],
-    knockFrequency: 310,
-    amplitude: 0.19,
+    // Crisp, premium "wooden tick" (short transient + tight body).
+    durationMs: 46,
+    bodyFrequencies: const [820, 1320, 2080, 3120],
+    knockFrequency: 360,
+    amplitude: 0.20,
     seed: 17,
   );
   static final String _captureSoundUri = _buildSoundUri(
-    durationMs: 78,
-    bodyFrequencies: const [520, 870, 1420],
-    knockFrequency: 205,
-    amplitude: 0.22,
+    // Slightly deeper + sharper than move (more body, slightly longer).
+    durationMs: 70,
+    bodyFrequencies: const [540, 860, 1280, 1780],
+    knockFrequency: 230,
+    amplitude: 0.23,
     seed: 43,
   );
   static bool _primed = false;
@@ -47,7 +49,7 @@ class BoardSoundPlayer {
   static void play({required bool capture}) {
     debugPrint('[sound:web] play requested capture=$capture');
     final audio = html.AudioElement(capture ? _captureSoundUri : _moveSoundUri)
-      ..volume = capture ? 0.18 : 0.14;
+      ..volume = capture ? 0.205 : 0.172;
     audio
         .play()
         .then((_) {
@@ -97,27 +99,29 @@ class BoardSoundPlayer {
     for (var i = 0; i < sampleCount; i++) {
       final t = i / sampleRate;
       final progress = i / sampleCount;
-      final attack = math.min(1.0, progress * 42);
-      final bodyEnvelope = attack * math.pow(1 - progress, 4.2).toDouble();
-      final clickEnvelope = math.pow(1 - progress, 18).toDouble();
-      final knockEnvelope = attack * math.pow(1 - progress, 6.5).toDouble();
+      // Fast attack + snappy decay to feel like wood contact.
+      final attack = math.min(1.0, progress * 85);
+      final bodyEnvelope = attack * math.pow(1 - progress, 3.7).toDouble();
+      final clickEnvelope = math.pow(1 - progress, 22).toDouble();
+      final knockEnvelope = attack * math.pow(1 - progress, 6.1).toDouble();
 
       noiseState = (noiseState * 1664525 + 1013904223) & 0x7fffffff;
       final noise = ((noiseState / 0x7fffffff) * 2) - 1;
 
-      var wave = noise * clickEnvelope * 0.52;
+      // Tight click + reduced noise floor.
+      var wave = noise * clickEnvelope * 0.36;
 
       for (var j = 0; j < bodyFrequencies.length; j++) {
         final weight = 0.34 / (j + 1);
-        final detune = 1 + (j * 0.006);
+        final detune = 1 + (j * 0.005);
         wave +=
             math.sin(2 * math.pi * bodyFrequencies[j] * detune * t) *
             bodyEnvelope *
             weight;
       }
 
-      wave += math.sin(2 * math.pi * knockFrequency * t) * knockEnvelope * 0.58;
-      wave = _softClip(wave * 1.6);
+      wave += math.sin(2 * math.pi * knockFrequency * t) * knockEnvelope * 0.62;
+      wave = _softClip(wave * 1.7);
 
       final sample = (wave * amplitude * 32767).clamp(-32768, 32767).round();
       data.setInt16(headerLength + (i * bytesPerSample), sample, Endian.little);

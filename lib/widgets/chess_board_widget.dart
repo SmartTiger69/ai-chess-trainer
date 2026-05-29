@@ -865,10 +865,11 @@ class _PlayerAvatar extends StatelessWidget {
 }
 
 class _CapturedPiecesInline extends StatelessWidget {
-  static const double _rowHeight = 22;
-  static const double _pieceSize = 18;
-  static const double _preferredStep = 8.5;
-  static const double _minStep = 5.5;
+  static const double _rowHeight = 24;
+  static const double _pieceSize = 21;
+  // Subtle overlap only (~6px) so pieces stay distinct and readable.
+  static const double _preferredStep = 15;
+  static const double _minStep = 11;
 
   final List<String> assetPaths;
   final int materialAdvantage;
@@ -956,7 +957,7 @@ class _CapturedPiecesInline extends StatelessWidget {
                                 child: SizedBox.square(
                                   dimension: _pieceSize,
                                   child: Opacity(
-                                    opacity: 0.92,
+                                    opacity: 0.9,
                                     child: Image.asset(
                                       assetPaths[index],
                                       fit: BoxFit.contain,

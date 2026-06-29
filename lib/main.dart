@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math';
 
+import 'package:ai_chess_trainer_app/services/chess_ai_service.dart';
 import 'package:ai_chess_trainer_app/widgets/chess_board_widget.dart';
 import 'package:ai_chess_trainer_app/widgets/move_sound_player.dart';
 import 'package:flutter/material.dart';
@@ -118,8 +120,9 @@ class _NewGameSetupScreenState extends State<NewGameSetupScreen> {
             ),
             child: DefaultTextStyle.merge(
               style: TextStyle(
-                color:
-                    selected ? const Color(0xFFEFEFEF) : const Color(0xFFC9C9C9),
+                color: selected
+                    ? const Color(0xFFEFEFEF)
+                    : const Color(0xFFC9C9C9),
               ),
               child: IconTheme(
                 data: IconThemeData(
@@ -401,6 +404,7 @@ class ChessScreen extends StatefulWidget {
 
 class _ChessScreenState extends State<ChessScreen> {
   chess.Chess game = chess.Chess();
+  late final ChessAiService _aiService;
 
   String gameStatus = "White to move";
 
@@ -429,6 +433,13 @@ class _ChessScreenState extends State<ChessScreen> {
   @override
   void initState() {
     super.initState();
+    _aiService = ChessAiService(botRating: widget.botRating);
+    unawaited(
+      _aiService.initialize().catchError((Object error, StackTrace stackTrace) {
+        debugPrint('[stockfish] warmup failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (!game.game_over && game.turn == _aiColor) {
@@ -437,41 +448,10 @@ class _ChessScreenState extends State<ChessScreen> {
     });
   }
 
-  Map<String, String> moveMapFromVerboseMove(
-    Map move, {
-    bool autoQueenPromotion = false,
-  }) {
-    final promotion = autoQueenPromotion && isPawnMoveToFinalRank(move)
-        ? 'q'
-        : promotionCodeFromMove(move);
-
-    return <String, String>{
-      'from': move['from'] as String,
-      'to': move['to'] as String,
-      if (promotion != null) 'promotion': promotion,
-    };
-  }
-
-  String? promotionCodeFromMove(Map move) {
-    final promotion = move['promotion'];
-    return promotion == null ? null : pieceTypeCode(promotion);
-  }
-
-  String pieceTypeCode(Object? pieceType) {
-    if (pieceType is chess.PieceType) return pieceType.name;
-    return pieceType.toString().toLowerCase();
-  }
-
-  bool isPawnMoveToFinalRank(Map move) {
-    final from = move['from']?.toString();
-    final piece = move['piece'] ?? (from == null ? null : game.get(from)?.type);
-    if (pieceTypeCode(piece) != 'p') return false;
-
-    final to = move['to']?.toString();
-    if (to == null || to.length != 2) return false;
-
-    final targetRank = to[1];
-    return targetRank == '1' || targetRank == '8';
+  @override
+  void dispose() {
+    unawaited(_aiService.dispose());
+    super.dispose();
   }
 
   Future<void> makeAiMove() async {
@@ -487,16 +467,22 @@ class _ChessScreenState extends State<ChessScreen> {
 
     await Future.delayed(const Duration(seconds: 1));
 
-    final moves = game.moves({'verbose': true}).cast<Map>();
+    Map<String, String>? aiMove;
+    try {
+      aiMove = (await _aiService.bestMoveForFen(game.fen))?.toMoveMap();
+    } catch (error, stackTrace) {
+      debugPrint('[stockfish] move request failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
 
-    if (moves.isEmpty) return;
-
-    final random = Random();
-
-    final aiMove = moveMapFromVerboseMove(
-      _pickAiMove(moves, rating: widget.botRating, random: random),
-      autoQueenPromotion: true,
-    );
+    if (!mounted) return;
+    if (aiMove == null) {
+      setState(() {
+        gameStatus = currentGameStatus();
+        isAiThinking = false;
+      });
+      return;
+    }
 
     logPromotionMoveStart(aiMove);
     debugPrint('[move] final game.move() payload: $aiMove');
@@ -510,107 +496,6 @@ class _ChessScreenState extends State<ChessScreen> {
       gameStatus = currentGameStatus();
       isAiThinking = false;
     });
-  }
-
-  Map _pickAiMove(
-    List<Map> moves, {
-    required int rating,
-    required Random random,
-  }) {
-    if (moves.length <= 1) return moves.first;
-
-    // Preserve current system (random), but bias toward "stronger" moves
-    // as rating increases. This keeps it lightweight and web-smooth.
-    final strength = rating <= 200
-        ? 0.15
-        : rating <= 400
-        ? 0.25
-        : rating <= 600
-        ? 0.45
-        : rating <= 900
-        ? 0.65
-        : 0.80;
-
-    final scored = <({Map move, double score})>[];
-    for (final m in moves) {
-      final score =
-          _scoreMove(m, random: random) * strength +
-          (random.nextDouble() * (1 - strength));
-      scored.add((move: m, score: score));
-    }
-    scored.sort((a, b) => b.score.compareTo(a.score));
-
-    // Stronger bots pick closer to top; weaker bots still blunder sometimes.
-    final topN = (moves.length * (rating >= 1200 ? 0.18 : 0.28))
-        .clamp(2, 10)
-        .round();
-    final pickFrom = scored.take(topN).toList();
-    return pickFrom[random.nextInt(pickFrom.length)].move;
-  }
-
-  double _scoreMove(Map move, {required Random random}) {
-    var score = 0.0;
-
-    final captured = move['captured'];
-    if (captured != null) {
-      score += 0.85 + (_capturedPieceValue(captured) * 0.22);
-    }
-    if (move['promotion'] != null) score += 1.1;
-
-    // Very lightweight tactical signal: prefer moves that give check.
-    final fen = game.fen;
-    final probe = _tryCloneFromFen(fen);
-    if (probe != null) {
-      final made = probe.move(moveMapFromVerboseMove(move));
-      if (made && probe.in_check) score += 0.55;
-    }
-
-    // Small preference for centralization (rough proxy for "sensible" play).
-    final to = move['to']?.toString();
-    if (to != null && to.length == 2) {
-      final file = to.codeUnitAt(0) - 'a'.codeUnitAt(0);
-      final rank = int.tryParse(to[1]) ?? 0;
-      final df = (file - 3.5).abs();
-      final dr = (rank - 4.5).abs();
-      score += (1.0 - ((df + dr) / 9.0)) * 0.22;
-    }
-
-    // Slight noise keeps play from feeling deterministic.
-    score += random.nextDouble() * 0.05;
-    return score;
-  }
-
-  int _capturedPieceValue(Object capturedType) {
-    final v = capturedType.toString().toLowerCase();
-    switch (v) {
-      case 'p':
-      case 'pawn':
-        return 1;
-      case 'n':
-      case 'knight':
-        return 3;
-      case 'b':
-      case 'bishop':
-        return 3;
-      case 'r':
-      case 'rook':
-        return 5;
-      case 'q':
-      case 'queen':
-        return 9;
-      default:
-        return 1;
-    }
-  }
-
-  chess.Chess? _tryCloneFromFen(String fen) {
-    try {
-      // chess package supports fromFEN() in recent versions; guarded just in case.
-      // ignore: invalid_use_of_visible_for_testing_member
-      return chess.Chess.fromFEN(fen);
-    } catch (_) {
-      return null;
-    }
   }
 
   Future<void> handleMove(Map<String, String> move) async {
